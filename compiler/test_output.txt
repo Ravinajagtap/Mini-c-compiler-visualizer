@@ -1,0 +1,90 @@
+﻿===TOKENS===
+KEYWORD         : int
+IDENTIFIER      : main
+LPAREN          : (
+RPAREN          : )
+LBRACE          : {
+KEYWORD         : int
+IDENTIFIER      : x
+ASSIGN          : =
+NUMBER          : 10
+SEMICOLON       : ;
+KEYWORD         : if
+LPAREN          : (
+IDENTIFIER      : x
+GT              : >
+NUMBER          : 5
+RPAREN          : )
+LBRACE          : {
+IDENTIFIER      : x
+ASSIGN          : =
+NUMBER          : 1
+SEMICOLON       : ;
+RBRACE          : }
+KEYWORD         : else
+LBRACE          : {
+IDENTIFIER      : x
+ASSIGN          : =
+NUMBER          : 0
+SEMICOLON       : ;
+RBRACE          : }
+KEYWORD         : return
+IDENTIFIER      : x
+SEMICOLON       : ;
+RBRACE          : }
+
+===PARSE===
+Parsing completed successfully.
+
+Variable declared + assigned: int x = 10
+[SEMANTIC ERROR] Variable '5' used without declaration.
+Assignment: x = 1
+Assignment: x = 0
+If-else statement parsed. Condition: x > 5
+Return statement: return x
+Function declared: int main()
+
+[SEMANTIC] Checks completed. See warnings/errors above.
+Program parsed successfully.
+
+===SYMTABLE===
+Inserted: x               | type: int      | value: 0.00
+Updated:  x               | value: 0.00
+Updated:  x               | value: 0.00
+Updated:  x               | value: 0.00
+============================================
+           SYMBOL TABLE
+============================================
+Name            Type      Value     Init?
+--------------------------------------------
+x               | int      | 0.00     | yes
+============================================
+Total: 1 variable(s)
+============================================
+
+===TAC===
+x = 10
+if x > 5 goto L1
+goto L2
+L1:
+x = 1
+x = 0
+return x
+============================================
+      THREE ADDRESS CODE (TAC)
+============================================
+ #   | Instruction
+-----|-------------------------------------
+ 1   |   x = 10
+ 2   | if x > 5 goto L1
+goto L2
+L1:
+ 3   |   x = 1
+ 4   |   x = 0
+ 5   |   return x
+============================================
+Total: 5 instruction(s)
+============================================
+
+===TREE===
+{"name":"program","children":[{"name":"var_decl","children":[{"name":"int"},{"name":"x"},{"name":"="},{"name":"10"}]},{"name":"assign","children":[{"name":"x"},{"name":"="},{"name":"1"}]},{"name":"assign","children":[{"name":"x"},{"name":"="},{"name":"0"}]},{"name":"if_else","children":[{"name":"cond: x > 5"},{"name":"then"},{"name":"else"}]},{"name":"return","children":[{"name":"x"}]},{"name":"func: int main()","children":[]}]}

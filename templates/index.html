@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini C Compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-bracket">{</span>
+      <span class="logo-text">miniC</span>
+      <span class="logo-bracket">}</span>
+    </div>
+    <div class="header-sub">Compiler Design Project &mdash; All 4 Phases + Parse Tree</div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- LEFT: Code Input Panel -->
+  <section class="panel panel-input">
+
+    <div class="panel-label">
+      <span class="dot dot-green"></span>
+      C Source Code
+    </div>
+
+    <textarea
+      id="code-input"
+      class="code-editor"
+      spellcheck="false"
+      placeholder="// Write your mini C code here
+// Supports: int, float, if-else, while, return
+
+int main() {
+    int x = 10;
+    int y = 5;
+    if (x > y) {
+        x = x + 1;
+    } else {
+        y = y + 1;
+    }
+    while (x > 0) {
+        x = x - 1;
+    }
+    return x;
+}"
+    ></textarea>
+
+    <div class="samples">
+      <span class="samples-label">Samples:</span>
+      <button class="sample-btn" onclick="loadSample('var')">Variable</button>
+      <button class="sample-btn" onclick="loadSample('ifelse')">If-Else</button>
+      <button class="sample-btn" onclick="loadSample('while')">While</button>
+      <button class="sample-btn" onclick="loadSample('full')">Full Program</button>
+    </div>
+
+    <button class="compile-btn" id="compile-btn" onclick="compile()">
+      <span class="btn-icon">&#9654;</span>
+      <span class="btn-text">Compile</span>
+    </button>
+
+    <div class="status-bar" id="status-bar">
+      <span id="status-text">Ready — enter code and click Compile</span>
+    </div>
+
+  </section>
+
+  <!-- RIGHT: Output Panel -->
+  <section class="panel panel-output">
+
+    <div class="panel-label">
+      <span class="dot dot-blue"></span>
+      Compiler Output
+    </div>
+
+    <!-- Phase tabs — 5 tabs now -->
+    <div class="tabs">
+      <button class="tab active" data-tab="tokens" onclick="switchTab('tokens')">
+        <span class="tab-num">1</span> Tokens
+      </button>
+      <button class="tab" data-tab="parse" onclick="switchTab('parse')">
+        <span class="tab-num">2</span> Parse
+      </button>
+      <button class="tab" data-tab="symtable" onclick="switchTab('symtable')">
+        <span class="tab-num">3</span> Symbol Table
+      </button>
+      <button class="tab" data-tab="tac" onclick="switchTab('tac')">
+        <span class="tab-num">4</span> TAC
+      </button>
+      <button class="tab" data-tab="tree" onclick="switchTab('tree')">
+        <span class="tab-num">5</span> Parse Tree
+      </button>
+    </div>
+
+    <div class="tab-desc" id="tab-desc">
+      Phase 1 — Lexer breaks your code into tokens (keywords, identifiers, operators)
+    </div>
+
+    <!-- Output boxes -->
+    <div class="output-box active" id="out-tokens">
+      <pre id="pre-tokens" class="output-pre">-- compile something to see output --</pre>
+    </div>
+    <div class="output-box" id="out-parse">
+      <pre id="pre-parse" class="output-pre">-- compile something to see output --</pre>
+    </div>
+    <div class="output-box" id="out-symtable">
+      <pre id="pre-symtable" class="output-pre">-- compile something to see output --</pre>
+    </div>
+    <div class="output-box" id="out-tac">
+      <pre id="pre-tac" class="output-pre">-- compile something to see output --</pre>
+    </div>
+
+    <!-- Parse Tree tab — uses D3.js SVG rendering -->
+    <div class="output-box" id="out-tree">
+      <div id="tree-container">
+        <div id="tree-placeholder" style="
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          height:100%;
+          color:#4a5568;
+          font-family:'JetBrains Mono',monospace;
+          font-size:13px;">
+          -- compile something to see parse tree --
+        </div>
+        <svg id="parse-tree-svg"></svg>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- Phase info strip -->
+<div class="phase-strip">
+  <div class="phase-card">
+    <div class="phase-num">01</div>
+    <div class="phase-name">Lexer</div>
+    <div class="phase-desc">Tokenizes raw C code into meaningful symbols</div>
+  </div>
+  <div class="phase-arrow">&#8594;</div>
+  <div class="phase-card">
+    <div class="phase-num">02</div>
+    <div class="phase-name">Parser</div>
+    <div class="phase-desc">Checks grammar rules, builds parse tree</div>
+  </div>
+  <div class="phase-arrow">&#8594;</div>
+  <div class="phase-card">
+    <div class="phase-num">03</div>
+    <div class="phase-name">Symbol Table</div>
+    <div class="phase-desc">Tracks all variables, types, and values</div>
+  </div>
+  <div class="phase-arrow">&#8594;</div>
+  <div class="phase-card">
+    <div class="phase-num">04</div>
+    <div class="phase-name">TAC</div>
+    <div class="phase-desc">Generates three-address intermediate code</div>
+  </div>
+  <div class="phase-arrow">&#8594;</div>
+  <div class="phase-card">
+    <div class="phase-num">05</div>
+    <div class="phase-name">Parse Tree</div>
+    <div class="phase-desc">Visual grammar tree of your program</div>
+  </div>
+</div>
+
+<script>
+
+/* ---- Tab descriptions ---- */
+const tabDescs = {
+  tokens:   "Phase 1 — Lexer breaks your code into tokens (keywords, identifiers, operators)",
+  parse:    "Phase 2 — Parser checks grammar rules and validates your code structure",
+  symtable: "Phase 3 — Symbol Table tracks every variable: name, type, and value",
+  tac:      "Phase 4 — TAC generates simple 3-address intermediate instructions",
+  tree:     "Phase 5 — Parse Tree shows the grammatical structure of your program visually"
+};
+
+/* ---- Switch tab ---- */
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".output-box").forEach(b => b.classList.remove("active"));
+  document.querySelector(`[data-tab="${name}"]`).classList.add("active");
+  document.getElementById(`out-${name}`).classList.add("active");
+  document.getElementById("tab-desc").textContent = tabDescs[name];
+}
+
+/* ---- Set status bar ---- */
+function setStatus(msg, type) {
+  const bar  = document.getElementById("status-bar");
+  const text = document.getElementById("status-text");
+  text.textContent = msg;
+  bar.className = "status-bar";
+  if (type) bar.classList.add("status-" + type);
+}
+
+/* ---- Sample code ---- */
+const samples = {
+  var: `int x = 5 + 3;
+int y = 10;
+int z = x + y;`,
+
+  ifelse: `int main() {
+    int x = 10;
+    int y = 5;
+    if (x > y) {
+        x = 1;
+    } else {
+        y = 1;
+    }
+    return x;
+}`,
+
+  while: `int main() {
+    int i = 0;
+    while (i < 10) {
+        i = i + 1;
+    }
+    return i;
+}`,
+
+  full: `int main() {
+    int x = 20;
+    int y = 10;
+    int result = 0;
+    if (x > y) {
+        result = x - y;
+    } else {
+        result = y - x;
+    }
+    int i = 0;
+    while (i < result) {
+        i = i + 1;
+    }
+    return i;
+}`
+};
+
+function loadSample(name) {
+  document.getElementById("code-input").value = samples[name];
+  setStatus("Sample loaded — click Compile", "");
+}
+
+/* ============================================================
+   drawTree(jsonStr)
+   Draws the parse tree using D3.js
+   Called after successful compilation
+   ============================================================ */
+function drawTree(jsonStr) {
+  const svg         = document.getElementById("parse-tree-svg");
+  const placeholder = document.getElementById("tree-placeholder");
+  const container   = document.getElementById("tree-container");
+
+  svg.innerHTML = "";
+  placeholder.style.display = "none";
+
+  let clean = jsonStr
+    .replace(/,\s*\]/g, "]")
+    .replace(/,\s*\}/g, "}");
+
+  let data;
+  try {
+    data = JSON.parse(clean);
+  } catch(e) {
+    svg.setAttribute("width",  "500");
+    svg.setAttribute("height", "60");
+    const errText = document.createElementNS("http://www.w3.org/2000/svg","text");
+    errText.setAttribute("x", "20");
+    errText.setAttribute("y", "40");
+    errText.setAttribute("fill", "#ff6b35");
+    errText.setAttribute("font-family", "JetBrains Mono, monospace");
+    errText.setAttribute("font-size", "12");
+    errText.textContent = "Tree error: " + e.message;
+    svg.appendChild(errText);
+    return;
+  }
+
+  const NODE_W = 120;
+  const NODE_H = 34;
+
+  /* TOP-DOWN layout: nodeSize = [width_spacing, height_spacing] */
+  const root = d3.hierarchy(data, d => d.children);
+
+  const treeLayout = d3.tree()
+    .nodeSize([NODE_W + 10, NODE_H + 40]);
+
+  treeLayout(root);
+
+  /* Find bounding box */
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  root.each(d => {
+    if (d.x < minX) minX = d.x;
+    if (d.x > maxX) maxX = d.x;
+    if (d.y < minY) minY = d.y;
+    if (d.y > maxY) maxY = d.y;
+  });
+
+  const PAD  = 60;
+  const svgW = (maxX - minX) + NODE_W + PAD * 2;
+  const svgH = maxY + NODE_H + PAD * 2;
+
+  svg.setAttribute("width",   svgW);
+  svg.setAttribute("height",  svgH);
+  svg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+
+  const offsetX = PAD + (-minX) + NODE_W / 2;
+  const offsetY = PAD;
+
+  /* Color per node type */
+  function getColor(name) {
+    if (!name) return { fill:"#1a1e2a", stroke:"#2a2f3f", text:"#8892a4" };
+    const n = name.toLowerCase();
+    if (n === "program")
+      return { fill:"#0a2a1a", stroke:"#00e5a0", text:"#00e5a0" };
+    if (n.startsWith("func"))
+      return { fill:"#1a1040", stroke:"#7f77dd", text:"#a09aee" };
+    if (n === "if_stmt" || n === "if_else")
+      return { fill:"#0a2040", stroke:"#0096ff", text:"#4db8ff" };
+    if (n === "while")
+      return { fill:"#0a2040", stroke:"#0096ff", text:"#4db8ff" };
+    if (n === "var_decl")
+      return { fill:"#2a1a0a", stroke:"#ff6b35", text:"#ff9166" };
+    if (n === "assign")
+      return { fill:"#2a1508", stroke:"#ff8c00", text:"#ffb347" };
+    if (n === "return")
+      return { fill:"#2a0a1a", stroke:"#d4537e", text:"#f093b0" };
+    if (n.startsWith("cond"))
+      return { fill:"#1a2a0a", stroke:"#639922", text:"#90cc44" };
+    return { fill:"#1a1e2a", stroke:"#353b50", text:"#8892a4" };
+  }
+
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  svg.appendChild(g);
+
+  /* Draw curved edges — top down */
+  root.links().forEach(link => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+    const sx = link.source.x + offsetX;
+    const sy = link.source.y + offsetY + NODE_H;
+    const tx = link.target.x + offsetX;
+    const ty = link.target.y + offsetY;
+    const my = (sy + ty) / 2;
+    path.setAttribute("d",
+      `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`);
+    path.setAttribute("fill",         "none");
+    path.setAttribute("stroke",       "#2a2f3f");
+    path.setAttribute("stroke-width", "1.5");
+    g.appendChild(path);
+  });
+
+  /* Draw nodes — top down */
+  root.each(d => {
+    const c  = getColor(d.data.name);
+    const nx = d.x + offsetX - NODE_W / 2;
+    const ny = d.y + offsetY;
+
+    const grp = document.createElementNS("http://www.w3.org/2000/svg","g");
+    grp.style.cursor = "pointer";
+
+    const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    rect.setAttribute("x",            nx);
+    rect.setAttribute("y",            ny);
+    rect.setAttribute("width",        NODE_W);
+    rect.setAttribute("height",       NODE_H);
+    rect.setAttribute("rx",           "7");
+    rect.setAttribute("fill",         c.fill);
+    rect.setAttribute("stroke",       c.stroke);
+    rect.setAttribute("stroke-width", "1");
+    grp.appendChild(rect);
+
+    let label = d.data.name || "?";
+    if (label.length > 14) label = label.substring(0, 13) + "…";
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+    text.setAttribute("x",           nx + NODE_W / 2);
+    text.setAttribute("y",           ny + NODE_H / 2 + 4);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("font-family", "JetBrains Mono, monospace");
+    text.setAttribute("font-size",   "11");
+    text.setAttribute("fill",        c.text);
+    text.textContent = label;
+    grp.appendChild(text);
+
+    /* Tooltip shows full name on hover */
+    const title = document.createElementNS("http://www.w3.org/2000/svg","title");
+    title.textContent = d.data.name;
+    grp.appendChild(title);
+
+    g.appendChild(grp);
+  });
+}
+
+/* ============================================================
+   compile()
+   Main function called when Compile button is clicked
+   ============================================================ */
+async function compile() {
+  const code = document.getElementById("code-input").value.trim();
+  if (!code) {
+    setStatus("Please enter some C code first!", "error");
+    return;
+  }
+
+  const btn = document.getElementById("compile-btn");
+  btn.classList.add("loading");
+  btn.querySelector(".btn-text").textContent = "Compiling...";
+  setStatus("Running all compiler phases...", "");
+
+  /* Clear old outputs */
+  ["tokens","parse","symtable","tac"].forEach(k => {
+    document.getElementById(`pre-${k}`).textContent = "compiling...";
+  });
+  document.getElementById("parse-tree-svg").innerHTML = "";
+  document.getElementById("tree-placeholder").style.display = "flex";
+
+  try {
+    const response = await fetch("/compile", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ code })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      /* Fill text output panels */
+      document.getElementById("pre-tokens").textContent   = data.tokens   || "(empty)";
+      document.getElementById("pre-parse").textContent    = data.parse    || "(empty)";
+      document.getElementById("pre-symtable").textContent = data.symtable || "(empty)";
+      document.getElementById("pre-tac").textContent      = data.tac      || "(empty)";
+
+      /* Draw parse tree if data exists */
+      if (data.tree && data.tree !== "{}" && data.tree.length > 2) {
+        drawTree(data.tree);
+      }
+
+      setStatus("Compilation successful — all phases complete!", "success");
+
+    } else {
+      const errMsg = "ERROR:\n" + (data.error || "Unknown error");
+      ["tokens","parse","symtable","tac"].forEach(k => {
+        document.getElementById(`pre-${k}`).textContent = errMsg;
+      });
+      setStatus("Compilation failed — check error in output", "error");
+    }
+
+  } catch (err) {
+    setStatus("Network error: " + err.message, "error");
+  } finally {
+    btn.classList.remove("loading");
+    btn.querySelector(".btn-text").textContent = "Compile";
+  }
+}
+
+/* Ctrl+Enter to compile */
+document.getElementById("code-input").addEventListener("keydown", function(e) {
+  if (e.ctrlKey && e.key === "Enter") compile();
+});
+
+</script>
+</body>
+</html>
